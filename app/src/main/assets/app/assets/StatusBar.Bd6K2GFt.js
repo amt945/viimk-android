@@ -1,0 +1,1 @@
+import{c as s,w as a,i as t,o as e,b as r}from"./index-D6ZbdcwG.js";import{_ as o}from"./_plugin-vue_export-helper.BCo6x5W8.js";const n=o({name:"StatusBar"},[["render",function(o,n,c,p,u,m){const d=t;return e(),s(d,{class:"vmk-status-wrap"},{default:a(()=>[r(d,{class:"vmk-status-safe"})]),_:1})}],["__scopeId","data-v-1d981fc2"]]);export{n as S};
