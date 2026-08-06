@@ -1,0 +1,52 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.viimk'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.viimk"
+        minSdk 21
+        targetSdk 34
+        versionCode 100
+        versionName "1.0.0"
+    }
+
+    signingConfigs {
+        release {
+            storeFile file(System.getProperty('user.home') + '/.android/debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }
+
+    lint {
+        checkReleaseBuilds false
+        abortOnError false
+        disable += ['MissingTranslation', 'InvalidPackage']
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'androidx.webkit:webkit:1.10.0'
+}
