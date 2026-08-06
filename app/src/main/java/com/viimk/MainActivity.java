@@ -24,6 +24,9 @@ public class MainActivity extends Activity {
         );
 
         webView = new WebView(this);
+        // 设置 WebView 背景透明，启动时显示主题背景色而非白屏
+        webView.setBackgroundColor(0x00000000);
+        webView.setLayerType(WebView.LAYER_TYPE_HARDWARE, null);
         setContentView(webView);
 
         WebSettings settings = webView.getSettings();
@@ -32,7 +35,6 @@ public class MainActivity extends Activity {
         settings.setDatabaseEnabled(true);
         settings.setAllowFileAccess(true);
         settings.setAllowContentAccess(true);
-        // 关键：允许 file:// 协议下的 ES Module 跨文件加载
         settings.setAllowFileAccessFromFileURLs(true);
         settings.setAllowUniversalAccessFromFileURLs(true);
         settings.setMediaPlaybackRequiresUserGesture(false);
@@ -49,6 +51,13 @@ public class MainActivity extends Activity {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 return false;
+            }
+
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                // 页面加载完成后，确保 WebView 完全显示
+                webView.setBackgroundColor(0x00000000);
             }
         });
 
