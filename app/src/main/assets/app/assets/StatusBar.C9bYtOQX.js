@@ -1,0 +1,1 @@
+import{c as s,w as a,i as t,o,h as r}from"./index-BKb7Y6Cc.js";import{_ as c}from"./VmkIcon.BTrBulnN.js";const e=c({name:"StatusBar"},[["render",function(c,e,n,m,d,f){const u=t;return o(),s(u,{class:"vmk-status-wrap"},{default:a(()=>[r(u,{class:"vmk-status-safe"})]),_:1})}],["__scopeId","data-v-1d981fc2"]]);export{e as S};
