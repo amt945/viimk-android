@@ -1,10 +1,10 @@
 package com.viimk;
 
-import android.Manifest;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ActivityInfo;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.net.Uri;
@@ -14,6 +14,7 @@ import android.os.Environment;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.KeyEvent;
+import android.view.View;
 import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
@@ -38,6 +39,7 @@ public class MainActivity extends Activity {
 
     private WebView webView;
     private String pendingApkPath;   // 安装未知来源权限申请后，待安装的 APK 路径
+    private boolean mSystemUiForcedImmersive = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,6 +49,8 @@ public class MainActivity extends Activity {
             WindowManager.LayoutParams.FLAG_FULLSCREEN,
             WindowManager.LayoutParams.FLAG_FULLSCREEN
         );
+        // 默认竖屏
+        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
 
         webView = new WebView(this);
         webView.setBackgroundColor(0x00000000);
@@ -215,6 +219,56 @@ public class MainActivity extends Activity {
             }
         }
 
+        /**
+         * 请求屏幕方向：H5 调用
+         *  orientation: "portrait" 竖屏 | "landscape" 横屏 | "unspecified" 跟随系统
+         */
+        @JavascriptInterface
+        public void setOrientation(final String orientation) {
+            final String o = orientation == null ? "portrait" : orientation;
+            runOnUiThread(() -> {
+                try {
+                    if ("landscape".equalsIgnoreCase(o)) {
+                        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+                        applyImmersiveSystemUi(true);
+                    } else if ("unspecified".equalsIgnoreCase(o)) {
+                        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
+                        applyImmersiveSystemUi(false);
+                    } else {
+                        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+                        applyImmersiveSystemUi(false);
+                    }
+                } catch (Throwable t) {
+                    Log.e(TAG, "setOrientation failed: " + o, t);
+                }
+            });
+        }
+
+        /** 全屏沉浸模式（横屏时隐藏状态栏/导航栏，视频真正铺满） */
+        private void applyImmersiveSystemUi(final boolean immersive) {
+            mSystemUiForcedImmersive = immersive;
+            try {
+                View decor = getWindow().getDecorView();
+                int flags = decor.getSystemUiVisibility();
+                int immersiveFlags = View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                    | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                    | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                    | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                    | View.SYSTEM_UI_FLAG_FULLSCREEN
+                    | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
+                if (immersive) {
+                    flags |= immersiveFlags;
+                } else {
+                    flags &= ~(View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+                }
+                decor.setSystemUiVisibility(flags);
+            } catch (Throwable t) {
+                Log.w(TAG, "applyImmersiveSystemUi failed", t);
+            }
+        }
+
         /** 调 Android DownloadManager / 系统安装器 安装 APK。
          *  当前版本实现：先请求必要权限，然后用内置线程直接下载到外部公共目录，最后触发安装。
          *  简化起见：统一用 openUrl 走浏览器下载（蓝奏云分享页更稳）。该方法保留给直链场景。
@@ -272,11 +326,42 @@ public class MainActivity extends Activity {
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
-        if (keyCode == KeyEvent.KEYCODE_BACK && webView.canGoBack()) {
-            webView.goBack();
-            return true;
+        // 返回键：若处于横屏/沉浸模式，先恢复竖屏再判断是否 goBack
+        if (keyCode == KeyEvent.KEYCODE_BACK) {
+            if (mSystemUiForcedImmersive) {
+                // 回到竖屏
+                setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+                runOnUiThread(() -> {
+                    try {
+                        View decor = getWindow().getDecorView();
+                        int flags = decor.getSystemUiVisibility();
+                        flags &= ~(View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+                        decor.setSystemUiVisibility(flags);
+                    } catch (Throwable ignore) {}
+                });
+                mSystemUiForcedImmersive = false;
+                // 通知 H5 退出全屏（player 会清除 isFullscreen）
+                notifyExitFullscreen();
+                return true;
+            }
+            if (webView.canGoBack()) {
+                webView.goBack();
+                return true;
+            }
         }
         return super.onKeyDown(keyCode, event);
+    }
+
+    /** 通知 H5 退出全屏（返回键触发） */
+    private void notifyExitFullscreen() {
+        if (webView == null) return;
+        String js = "(function(){try{"
+            + "var evt=new CustomEvent('viimkExitFullscreen');window.dispatchEvent(evt);"
+            + "if(window.__vmkExitFullscreen) window.__vmkExitFullscreen();"
+            + "}catch(e){}})();";
+        runOnUiThread(() -> webView.evaluateJavascript(js, null));
     }
 
     @Override
@@ -293,6 +378,8 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        // 退出前恢复竖屏，避免旋转泄漏
+        try { setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT); } catch (Throwable ignore) {}
         if (webView != null) {
             webView.stopLoading();
             webView.clearHistory();
