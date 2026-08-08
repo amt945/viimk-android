@@ -37,6 +37,7 @@ android {
         }
         debug {
             minifyEnabled false
+            signingConfig signingConfigs.release
         }
     }
 
