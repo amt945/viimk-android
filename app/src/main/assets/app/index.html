@@ -7,15 +7,48 @@
     <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="VIIMK" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#0B0B0F" />
+    <meta name="msapplication-TileColor" content="#0B0B0F" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="./static/icons/apple-touch-icon-180.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="./static/icons/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="./static/icons/icon-512.png" />
     <title>VIIMK</title>
     <script>
       var coverSupport = 'CSS' in window && typeof CSS.supports === 'function' && (CSS.supports('top: env(a)') || CSS.supports('top: constant(a)'))
       document.write('<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no' + (coverSupport ? ',viewport-fit=cover' : '') + '" />')
     </script>
-    <script type="module" crossorigin src="./assets/index-BaLp0fuM.js"></script>
+    <script type="module" crossorigin src="./assets/index-PMvJSzyq.js"></script>
     <link rel="stylesheet" crossorigin href="./assets/index-DMIPj28H.css">
   </head>
   <body>
     <div id="app"></div>
+    <script>
+      // PWA Service Worker 注册（仅 HTTPS 或 localhost 下注册成功）
+      if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.register('./sw.js', { scope: './' }).then(function (reg) {
+            // 检测到 SW 更新时，激活后 postMessage 让它立刻接管
+            if (reg.waiting) {
+              reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+            }
+            reg.addEventListener('updatefound', function () {
+              var nw = reg.installing;
+              if (!nw) return;
+              nw.addEventListener('statechange', function () {
+                if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+                  try { nw.postMessage({ type: 'SKIP_WAITING' }); } catch (e) {}
+                }
+              });
+            });
+          }).catch(function (e) {
+            console.warn('[PWA] SW 注册失败', e);
+          });
+        });
+      }
+    </script>
   </body>
 </html>
